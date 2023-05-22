@@ -59,17 +59,9 @@
 #       If this is set, writes an explicit weight into the module.desc;
 #       module weights are used in progress reporting.
 #
-#
-# This function follows the global SKIP_MODULES and USE_* settings, so
-# a plugin may be skipped -- then nothing will be built. In that case,
-# SKIPPED_MODULES is set in the parent (i.e. caller's) scope with the
-# reason why. This should rarely be a concern as AddModuleSubdirectory
-# already handles skip-reasons and collects them for reporting.
 
 include( CMakeParseArguments )
-
 include( CalamaresAddLibrary  )
-include( CalamaresCheckModuleSelection )
 include( CMakeColors )
 
 function( calamares_add_plugin )
@@ -88,12 +80,6 @@ function( calamares_add_plugin )
     set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" )
     set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}" )
 
-    calamares_check_skip( ${NAME} _skip)
-    if ( _skip )
-        set( SKIPPED_MODULES "${_skip}" PARENT_SCOPE )
-        return()
-    endif()
-
     message( "-- ${BoldYellow}Found ${CALAMARES_APPLICATION_NAME} module: ${BoldRed}${PLUGIN_NAME}${ColorReset}" )
     message( "   ${Green}TYPE:${ColorReset} ${PLUGIN_TYPE}" )
     message( "   ${Green}LINK_LIBRARIES:${ColorReset} ${PLUGIN_LINK_LIBRARIES}" )
@@ -104,7 +90,10 @@ function( calamares_add_plugin )
             message( FATAL_ERROR "${Red}NO_CONFIG${ColorReset} is set, with configuration ${Red}${PLUGIN_CONFIG_FILES}${ColorReset}" )
         endif()
         set( _destination "(unknown)" )
-        if( NOT PLUGIN_NO_INSTALL )
+        if ( INSTALL_CONFIG AND NOT PLUGIN_NO_INSTALL )
+            set( _destination "${PLUGIN_DATA_DESTINATION}" )
+        elseif( NOT PLUGIN_NO_INSTALL )
+            # Not INSTALL_CONFIG
             set( _destination "[Build directory only]" )
         else()
             set( _destination "[Skipping installation]" )
@@ -122,15 +111,6 @@ function( calamares_add_plugin )
 
     # create target name once for convenience
     set( target "calamares_${PLUGIN_TYPE}_${PLUGIN_NAME}" )
-
-    # automatic library linkage
-    if(PLUGIN_TYPE STREQUAL "view" OR PLUGIN_TYPE STREQUAL "viewmodule")
-        list(APPEND PLUGIN_LINK_PRIVATE_LIBRARIES Calamares::calamaresui)
-    elseif(PLUGIN_TYPE STREQUAL "job")
-        list(APPEND PLUGIN_LINK_PRIVATE_LIBRARIES Calamares::calamares)
-    else()
-        message(FATAL_ERROR "Unknown plugin type ${PLUGIN_TYPE}")
-    endif()
 
     # determine target type
     if( NOT ${PLUGIN_SHARED_LIB} )
@@ -207,11 +187,16 @@ function( calamares_add_plugin )
 
         set( _warned_config OFF )
         foreach( PLUGIN_CONFIG_FILE ${PLUGIN_CONFIG_FILES} )
-            if( ${CMAKE_CURRENT_SOURCE_DIR}/${PLUGIN_CONFIG_FILE} IS_NEWER_THAN ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_CONFIG_FILE} )
+            if( ${CMAKE_CURRENT_SOURCE_DIR}/${PLUGIN_CONFIG_FILE} IS_NEWER_THAN ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_CONFIG_FILE} OR INSTALL_CONFIG )
                 configure_file( ${PLUGIN_CONFIG_FILE} ${PLUGIN_CONFIG_FILE} COPYONLY )
             else()
                 message( "   ${BoldYellow}Not updating${ColorReset} ${PLUGIN_CONFIG_FILE}" )
                 set( _warned_config ON )
+            endif()
+            if ( INSTALL_CONFIG )
+                install(
+                    FILES ${CMAKE_CURRENT_BINARY_DIR}/${PLUGIN_CONFIG_FILE}
+                    DESTINATION ${PLUGIN_DATA_DESTINATION} )
             endif()
         endforeach()
         if ( _warned_config )
