@@ -33,4 +33,4 @@ SpacesBeforeTrailingComments: "2"
 SpacesInAngles: "true"
 SpacesInParentheses: "true"
 SpacesInSquareBrackets: "true"
-Standard: c++17
+Standard: Cpp11
