@@ -12,4 +12,3 @@ bits that need to be on the target system for example purposes.
 It should *not* have a bin/, lib/, sbin/ or lib64/ directory,
 since those are copied into the example-distro filesystem
 from the build host.
-
